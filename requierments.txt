@@ -1,0 +1,42 @@
+# Core Docling
+docling==2.73.0
+docling-core==2.64.0
+docling-ibm-models==3.11.0
+docling-parse==4.7.3
+semchunk==2.2.2
+
+# Parsing / file handling
+filetype==1.2.0
+pypdfium2==5.4.0
+python-docx==1.2.0
+python-pptx==1.0.2
+beautifulsoup4==4.14.3
+pandas==2.3.3
+openpyxl==3.1.5
+lxml==6.0.2
+marko==2.2.2
+pillow==11.3.0
+tqdm==4.67.3
+rtree==1.4.1
+pylatexenc==2.10
+latex2mathml==3.78.1
+
+# Transformers & Huggingface
+transformers==4.57.6
+accelerate==1.12.0
+
+# CPU-only PyTorch (torch + torchvision)
+# ⚠️ À installer depuis le repo officiel CPU
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.10.0
+torchvision==0.25.0
+
+# Extras
+polyfactory==3.2.0
+rapidocr==3.6.0
+huggingface_hub==0.36.2
+typing-extensions>=4.0.0
+
+
+uvicorn
+fastapi
