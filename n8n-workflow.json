@@ -1,0 +1,206 @@
+{
+  "name": "Convert-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1UroqnyxABqvuNH1llSc21kdN75ii-_HL",
+          "mode": "list",
+          "cachedResultName": "input",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1UroqnyxABqvuNH1llSc21kdN75ii-_HL"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "b8262207-1bb8-494a-a8dc-1cf8f07593d7",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0UpLiEI1FuVj1LBo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [220, 0],
+      "id": "fdcdf8c1-ad9b-48a7-a829-377bbdd0fc52",
+      "name": "Download File",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0UpLiEI1FuVj1LBo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/convert-file",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [440, 0],
+      "id": "604619fb-2fc2-40bf-9075-259a921446c0",
+      "name": "Convert to Markdown"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupère le markdown retourné par DoclingAPI\nconst markdown = $input.first().json.markdown;\nconst originalName = $('Google Drive Trigger').first().json.name;\nconst originalFileId = $('Google Drive Trigger').first().json.id;\n\n// Remplace l'extension par .md\nconst mdFilename = originalName.replace(/\\.[^.]+$/, '.md');\n\n// Convertit le texte markdown en binaire pour l'upload Google Drive\nconst binaryData = Buffer.from(markdown, 'utf-8');\n\nreturn [{\n  json: {\n    originalFileId: originalFileId,\n    mdFilename: mdFilename,\n    markdownLength: markdown.length\n  },\n  binary: {\n    data: {\n      data: binaryData.toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: mdFilename,\n      fileExtension: 'md'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Prepare Markdown File"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ $json.mdFilename }}",
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REMPLACER_PAR_ID_DOSSIER_MARKDOWN"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [880, -80],
+      "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+      "name": "Upload Markdown",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0UpLiEI1FuVj1LBo",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.originalFileId }}"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REMPLACER_PAR_ID_DOSSIER_DONE"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [880, 80],
+      "id": "d4c3b2a1-9876-5432-fedc-ba0987654321",
+      "name": "Move to Done",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0UpLiEI1FuVj1LBo",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Convert to Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Markdown": {
+      "main": [
+        [
+          {
+            "node": "Prepare Markdown File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Markdown File": {
+      "main": [
+        [
+          {
+            "node": "Upload Markdown",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Move to Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "406655a6ea3ceeeacacea3890f3dafdc06cd8a5f4455394cdf83c97ef1ca5744"
+  },
+  "id": "Ay4M-DtwCYcEKx_i9GOpo",
+  "tags": []
+}
