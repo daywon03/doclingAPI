@@ -7,6 +7,7 @@ import tempfile
 import os
 import uvicorn
 import logging
+from typing import List, Dict
 
 # --- Configuration du logging ---
 logging.basicConfig(
@@ -39,6 +40,12 @@ logger.info("✅ Docling converter initialized")
 # --- Modèles Pydantic ---
 class ConvertUrlRequest(BaseModel):
     url: str
+
+
+class ChunkRequest(BaseModel):
+    markdown: str
+    chunk_size: int = 2000
+    overlap: int = 200
 
 
 # --- Health Check ---
@@ -126,6 +133,43 @@ async def convert_from_file_raw(file: UploadFile = File(...)):
                 os.unlink(tmp_path)
             except Exception:
                 pass
+
+
+# --- Chunker Markdown pour RAG ---
+@app.post("/chunk-md")
+def chunk_markdown(payload: ChunkRequest):
+    """
+    Coupe un long Markdown en chunks pour RAG.
+
+    Comportement:
+    - `chunk_size` (par défaut 2000) est la taille maximale d'un chunk en caractères.
+    - `overlap` (par défaut 200) est le nombre de caractères répétés entre la fin
+      d'un chunk et le début du suivant (la fin du précédent est le début du suivant).
+    Retourne JSON: {"chunks": [{"index": int, "text": str}, ...], "count": int}
+    """
+    text = payload.markdown or ""
+    chunk_size = int(payload.chunk_size) if payload.chunk_size and payload.chunk_size > 0 else 2000
+    overlap = int(payload.overlap) if payload.overlap and payload.overlap >= 0 else 200
+
+    if overlap >= chunk_size:
+        raise HTTPException(status_code=400, detail="overlap must be smaller than chunk_size")
+
+    step = chunk_size - overlap if chunk_size > overlap else 1
+    chunks: List[Dict] = []
+    i = 0
+    idx = 0
+    text_len = len(text)
+
+    while i < text_len:
+        chunk = text[i:i + chunk_size]
+        chunks.append({"index": idx, "text": chunk})
+        idx += 1
+        if i + chunk_size >= text_len:
+            break
+        i += step
+
+    logger.info(f"✅ Markdown chunked into {len(chunks)} chunks (size={chunk_size}, overlap={overlap})")
+    return {"chunks": chunks, "count": len(chunks)}
 
 
 # --- Lancer le serveur directement si on exécute ce script ---
